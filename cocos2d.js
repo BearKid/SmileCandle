@@ -37,7 +37,7 @@
         tag:'gameCanvas', //the dom element to run cocos2d on
         engineDir:'frameworks/cocos2d-html5/cocos2d/',
         //SingleEngineFile:'',
-        appFiles:['src/CCNotificationCenter.js','src/GameData.js','src/CandleSprite.js','src/BatterySprite.js','src/PlateSprite.js','src/WelcomeLayer.js',]
+        appFiles:['src/CCNotificationCenter.js','src/GameData.js','src/GameLoaderScene.js','src/CandleSprite.js','src/BatterySprite.js','src/PlateSprite.js','src/WelcomeLayer.js',]
     };
 
     if(!d.createElement('canvas').getContext){

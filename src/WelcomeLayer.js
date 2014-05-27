@@ -9,7 +9,6 @@ var MyGameLayer = cc.LayerColor.extend({
 	this.plates=[];
 	this.count = 0;
 	this.batteryActivated=false;
-	this.foucusCandle=null;
 	this.isFinished= false;
 
         this.init();
@@ -28,8 +27,6 @@ var MyGameLayer = cc.LayerColor.extend({
 	this.background = cc.Sprite.create(bg_img);
 	this.background.setPosition(this.getContentSize().width/2,this.getContentSize().height/2);
 	this.addChild(this.background);
-	//init menu
-	this.initMenu();
 	//init battery
 	this.batterySprite = new BatterySprite;
 	this.addChild(this.batterySprite);
@@ -39,21 +36,60 @@ var MyGameLayer = cc.LayerColor.extend({
 	for(var i = 0; i < 5; i++){
 	    this.addCandle();
 	}
-	this.schedule(this.gameLogic,0);
-	this.scheduleOnce(function(){//白天->黄昏
-	    this.setBackground(afternoon_img);
-	    gSharedEngine.playEffect(time_warn);
-	},20);
-	this.scheduleOnce(function(){//黄昏->夜晚
-	    this.setBackground(night_img);
-	    gSharedEngine.playEffect(time_warn);
+	//早上->中午->黄昏
+	this.scheduleOnce(function(){
+		//this.setBackground(afternoon_img);
+		//太阳
+		var sun = cc.Sprite.create(sun_img);
+		var x = sun.getContentSize().width/2;
+		var y0 = -sun.getContentSize().height/2;
+		sun.setPosition(x,y0);
+		this.addChild(sun);
+		var y1 = WIN_SIZE.height - sun.getContentSize().height/2;
+		//早上->中午
+		var action1 = cc.MoveTo.create(20,cc.p(x,y1));
+		//中午->黄昏
+		var action2 = cc.Spawn.create(
+			cc.MoveTo.create(20,cc.p(x,y0)),
+			cc.CallFunc.create(function(){
+				gSharedEngine.playEffect(time_warning_audio);
+			})
+		);
+		sun.runAction(cc.Sequence.create(action1,action2));
+	},0);
+	//黄昏->夜晚
+	this.scheduleOnce(function(){
+		var _thisObj = this;
+		//月亮
+		var moon = cc.Sprite.create(moon_img);
+		x = moon.getContentSize().width/2;
+		y0 = -moon.getContentSize().height/2;
+		moon.setPosition(x,y0);
+		this.addChild(moon);
+		y1 = WIN_SIZE.height - moon.getContentSize().height/2;
+		var action = cc.Spawn.create(
+			cc.CallFunc.create(function(){
+				gSharedEngine.playEffect(time_warning_audio);
+			}),
+			cc.Sequence.create(
+				cc.MoveTo.create(20,cc.p(x,y1)),
+				cc.CallFunc.create(function(){
+					if(!_thisObj.isFinished) _thisObj.showGameOver();
+				})
+			)
+		);
+		moon.runAction(action);
+		//星星
+		var stars = cc.Sprite.create(stars_img);
+		x = WIN_SIZE.width - stars.getContentSize().width/2;
+		y0 = WIN_SIZE.height - stars.getContentSize().height/2;
+		stars.setPosition(x,y0);
+		this.addChild(stars);
+		action = cc.RepeatForever.create(cc.Sequence.create(cc.FadeOut.create(2),cc.FadeIn.create(2)));
+		stars.runAction(action);
 	},40);
-	this.scheduleOnce(function(){//黄昏->夜晚
-	    if(!this.gameFinishCheck()){
-		this.isFinished = true;
-		this.showGameOver();
-	    }
-	},60);
+
+	this.schedule(this.gameLogic,0);
 
         return true;
     },
@@ -74,7 +110,7 @@ var MyGameLayer = cc.LayerColor.extend({
 	//this.batterySprite=null;
 	//this.plates=[];
 	//this.batteryActivated=false;
-	//this.foucusCandle=null;
+	//dragged_node=null;
 	//this.isFinished = false;
 	//this.removeAllChildren(true);
 	//this.unscheduleAllCallbacks();
@@ -127,29 +163,44 @@ var MyGameLayer = cc.LayerColor.extend({
 	//var jumpTo = cc.p(this.batterySprite.getPosition().x,this.batterySprite.getPosition().y + this.batterySprite.getContentSize().width/2 + cake.getContentSize().height);
 	var jumpTo = this.batterySprite.getPosition();
 	cake.runAction(cc.JumpTo.create(2,jumpTo,cake.getContentSize().height,4));
+
+	//init restart button
+	var restartBtn = cc.MenuItemImage.create(
+		restart_nor_btn,restart_down_btn,
+	this.restart,
+	this);
+	var x = WIN_SIZE.width/2;
+	var y = restartBtn.getContentSize().height;
+	restartBtn.setPosition(x,y);
+	var menu = cc.Menu.create(restartBtn);
+	menu.setPosition(0,0);
+	this.addChild(menu);
     },
     showGameOver:function(){
 	this.unscheduleAllCallbacks();
 	gSharedEngine.playEffect(game_over_audio);
-	var result = cc.Sprite.create(game_over_img);
-	result.setPosition(this.getContentSize().width/2,this.getContentSize().height/2);
+	var gameOver = cc.Sprite.create(game_over_img);
+	gameOver.setPosition(this.getContentSize().width/2,this.getContentSize().height/2);
 
-	var action = cc.Spawn.create(cc.FadeIn.create(1),cc.ScaleTo.create(1,2),cc.RotateBy.create(1,360));
-	result.runAction(action);
-	
-	this.addChild(result);
+	var action1 = cc.Spawn.create(cc.FadeIn.create(1),cc.ScaleTo.create(1,2),cc.RotateBy.create(1,360));
+	var action2 = cc.CallFunc.create(function(){
+		//init restart button
+		var restartBtn = cc.MenuItemImage.create(
+			restart_nor_btn,restart_down_btn,
+			this.restart,
+			this);
+		var x = WIN_SIZE.width/2;
+		var y = gameOver.getPosition().y - gameOver.getContentSize().height/2 - restartBtn.getContentSize().height;
+		restartBtn.setPosition(x,y);
+		var menu = cc.Menu.create(restartBtn);
+		menu.setPosition(0,0);
+		this.addChild(menu);
+	},this);
+	gameOver.runAction(cc.Sequence.create(action1,action2));
+	this.addChild(gameOver);
+
     },
     initMenu:function(){
-	var itemStartGame = cc.MenuItemImage.create(
-		restart_nor_btn,restart_down_btn,
-	this.restart,
-	this);
-	var x =itemStartGame.getContentSize().width/2;
-	var y = WIN_SIZE.height-itemStartGame.getContentSize().height/2;
-	itemStartGame.setPosition(x,y);
-	var menu = cc.Menu.create(itemStartGame);
-	menu.setPosition(0,0);
-	this.addChild(menu);
     },
     initPlates:function(){
 	var oX = WIN_SIZE.width/2;
@@ -280,21 +331,29 @@ var MyGameLayer = cc.LayerColor.extend({
     onKeyUp:function(key){
 	if(key == cc.KEY.shift) {
 	    this.batteryActivated = !this.batteryActivated;
+		if(this.batteryActivated){
+			this.batterySprite.initWithFile(battery_on_img);
+		}else{
+			this.batterySprite.initWithFile(battery_off_img);
+		}
+	}else if(key == cc.KEY.escape){
+		gSharedEngine.playEffect(button_click_audio);
+		DIRECTOR.replaceScene(cc.TransitionSlideInB.create(1,new WelcomeScene));
 	}
 	return true;
     },
     onKeyDown:function(key){
-	return true;
+	return false;
     },
     onMouseUp:function (event) {
 	if(this.batteryActivated){
 	    this.batteryFire(event.getLocation());
 	} else{
 	    //固定安置点与蜡烛碰撞检测
-	    if(this.foucusCandle != null && !this.fixCandleCheck(this.foucusCandle)){//固定失败后蜡烛恢复自由移动
-		this.foucusCandle.resumeSchedulerAndActions();
+	    if(dragged_node != null && !this.fixCandleCheck(dragged_node)){//固定失败后蜡烛恢复自由移动
+		dragged_node.resumeSchedulerAndActions();
 	    }
-	    this.foucusCandle = null;
+	    dragged_node = null;
 	}
 	return true;
     },
@@ -305,21 +364,28 @@ var MyGameLayer = cc.LayerColor.extend({
 	return true;
     },
     onMouseDragged:function(event){
-	if(cursor_point == null){
-	    cursor_point = event.getLocation();
-	}
 	if(!this.batteryActivated){
 	    for(var i in this.candles){
-		var candle = this.candles[i];
-		if(cc.rectContainsPoint(candle.getBoundingBox(),event.getLocation())){
-		    if(this.foucusCandle == null){
-			this.foucusCandle = candle;
-			this.foucusCandle.pauseSchedulerAndActions();
-		    }
-		    this.foucusCandle.setPosition(event.getLocation());
-		    break;
+			var candle = this.candles[i];
+			if(dragged_node == null){
+				if(!cc.rectContainsPoint(candle.getBoundingBox(),event.getLocation())){
+					continue;
+				}
+				dragged_node = candle;
+				dragged_node.pauseSchedulerAndActions();
+			}
+			//不可进入打火机禁区
+			 var x1 = event.getLocation().x ;
+			 var y1 = event.getLocation().y;
+			 var x2 = BATTERY_POSITION.x;
+			 var y2 = BATTERY_POSITION.y;
+			 var d2 = Math.pow(x1-x2,2) + Math.pow(y1-y2,2);
+			 var r2 = Math.pow(BATTERY_RADIUS,2);
+			 if(d2>r2){
+				 dragged_node.setPosition(event.getLocation());
+			 }
+			break;
 		}
-	    }
 	}
 	return true;
     },
@@ -390,7 +456,7 @@ var MyGameLayer = cc.LayerColor.extend({
 	    var fire = this.fires[j];
 	    for(var i in this.candles){//普通浮动蜡烛
 		var candle = this.candles[i];
-		if(candle.isFired) continue;
+		if(candle == dragged_node || candle.isFired) continue;
 		if(candle.fireCheck(fire)){
 		    gSharedEngine.playEffect(fire_candle_audio);
 		    candle.initWithFile(candle2_img);
@@ -460,6 +526,9 @@ var WelcomeScene = cc.Scene.extend({
 	this._super();
 	var mainLayer = cc.LayerColor.create();
 	mainLayer.init(cc.c4b(236,232,178,255));
+	var background = cc.Sprite.create(bg_img);
+	background.setPosition(WIN_SIZE.width/2,WIN_SIZE.height/2);
+	mainLayer.addChild(background);
 
 	gSharedEngine.setMusicVolume(1);
 	gSharedEngine.setEffectsVolume(1);
@@ -481,7 +550,7 @@ var WelcomeScene = cc.Scene.extend({
 	//说明
 	var instruction = cc.Sprite.create(instruction_img);
 	//instruction.setPosition(;
-	var instructionPoint = cc.p(WIN_SIZE.width/2,WIN_SIZE.height/2 -instruction.getContentSize().height/2);
+	var instructionPoint = cc.p(WIN_SIZE.width/2,WIN_SIZE.height/2 -instruction.getContentSize().height/2-20);
 	mainLayer.addChild(instruction);
 	var action = cc.JumpTo.create(2,instructionPoint,instruction.getContentSize().height,3);
 	instruction.runAction(action);
@@ -492,6 +561,6 @@ var WelcomeScene = cc.Scene.extend({
     startGame:function(sender){
         gSharedEngine.playEffect(button_click_audio);
         var nextScene = new MyGameScene;
-        cc.Director.getInstance().replaceScene(cc.TransitionSlideInT.create(0.4, nextScene));
+        DIRECTOR.replaceScene(cc.TransitionSlideInT.create(0.4, nextScene));
     },
 });

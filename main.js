@@ -54,7 +54,7 @@ var cocos2dApp = cc.Application.extend({
         WIN_SIZE = DIRECTOR.getWinSize();
 
         //load resources
-        cc.LoaderScene.preload(g_ressources, function(){
+        GameLoaderScene.preload(g_ressources, function(){
             director.replaceScene(new this.startScene());
         }, this);
 
@@ -65,7 +65,9 @@ var DIRECTOR;
 var WIN_SIZE;
 var cursor_point;
 var myApp = new cocos2dApp(WelcomeScene);
+var welcome_scene = new WelcomeScene;
 
 var BATTERY_RADIUS = 150;
 var BATTERY_POSITION = cc.p(WIN_SIZE.width/2,WIN_SIZE.height/2);
 var UNIGNITED_FIXED_CANDLE_TIME_LIMIT = 5;
+var dragged_node = null;
